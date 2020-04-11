@@ -4,13 +4,21 @@ class Synapse {
   final int synapseLayer;
   final int originNeuron;
   final int destinationNeuron;
-  final double weight;
+
+  double _weight;
+  double get weight => _weight;
 
   Synapse({
     @required this.synapseLayer,
     @required this.originNeuron,
     @required this.destinationNeuron,
-    this.weight = 0});
+    double weight = 0}) {
+    _weight = weight;
+  }
+
+  void addWeight(double delta) {
+    _weight += delta;
+  }
 
   Map<String, Object> toJson() {
     final result = <String, Object>{};

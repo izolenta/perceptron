@@ -7,10 +7,14 @@ import 'package:perceptron/src/activation_functions/activation_function_type.dar
 import 'package:perceptron/src/activation_functions/bipolar_sigmoid.dart';
 import 'package:perceptron/src/activation_functions/linear.dart';
 import 'package:perceptron/src/activation_functions/sigmoid.dart';
+import 'package:perceptron/src/activation_functions/training_neuron_description.dart';
 import 'package:perceptron/src/neuron.dart';
 import 'package:perceptron/src/synapse.dart';
+import 'package:perceptron/src/training_data.dart';
 
 class Perceptron {
+
+  static const alpha = 5;
 
   final _neurons = <Neuron>[];
   final _synapses = <Synapse>[];
@@ -39,7 +43,7 @@ class Perceptron {
   }
 
   void _init(List<int> layers, ActivationFunctionType activationFunctionType, [List<Synapse> initialSynapses]) {
-    assert(layers.length > 1, 'Neural network should have at least two layers');
+    assert(layers.length == 3, 'This library supports neural networks with one input, one hidden and one output layers');
     _activationFunctionType = activationFunctionType;
     final function = _getActivationFunction(activationFunctionType);
     _netConfiguration = layers;
@@ -68,7 +72,7 @@ class Perceptron {
     }
   }
 
-  List<double> process(List<int> input) {
+  List<double> process(List<double> input) {
     final stopwatch = Stopwatch();
     stopwatch.start();
     _neurons.forEach((n) => n.initNeuron());
@@ -83,8 +87,41 @@ class Perceptron {
       res.add(_getNeuron(_netConfiguration.length-1, i).value);
     }
     stopwatch.stop();
-    print('processed in ${stopwatch.elapsedMilliseconds / 1000} sec');
+//    print('processed in ${stopwatch.elapsedMilliseconds / 1000} sec');
     return res;
+  }
+
+  void train(List<TrainingData> trainData) {
+    for (var next in trainData) {
+      if (next.inputData.length != _netConfiguration.first) {
+        print('Data for training should have the same number of inputs as the neurons number of entry layer of the network, skipping');
+        continue;
+      }
+      if (next.outputData.length != _netConfiguration.last) {
+        print('Data for training should have the same number of outputs as the neurons number of exit layer of the network, skipping');
+        continue;
+      }
+      process(next.inputData);
+      for (var i=0; i<_netConfiguration.last; i++) {
+        final neuron = _getNeuron(_netConfiguration.length-1, i);
+        final sigma =
+            (next.outputData[i] - neuron.value) * neuron.activationFunction.derivative(neuron.unsealedValue);
+        for (var prevNeuron in neuron.prevLayerValues) {
+          final deltaWeight = alpha * sigma * prevNeuron.neuronValue;
+          _getSynapse(1, prevNeuron.neuronNumber, i).addWeight(deltaWeight);
+          _getNeuron(1, prevNeuron.neuronNumber).addErrorValue(sigma * prevNeuron.synapseWeight);
+        }
+      }
+      for (var i=0; i<_netConfiguration[1]; i++) {
+        final neuron = _getNeuron(_netConfiguration.length-2, i);
+        final sigma =
+            neuron.error * neuron.activationFunction.derivative(neuron.unsealedValue);
+        for (var prevNeuron in neuron.prevLayerValues) {
+          final deltaWeight = alpha * sigma * prevNeuron.neuronValue;
+          _getSynapse(0, prevNeuron.neuronNumber, i).addWeight(deltaWeight);
+        }
+      }
+    }
   }
 
   ActivationFunction _getActivationFunction(ActivationFunctionType activationFunctionType) {
@@ -103,7 +140,9 @@ class Perceptron {
       for (var j=0; j<_netConfiguration[layer+1]; j++) {
         final destination = _getNeuron(layer+1, j);
         final synapse = _getSynapse(layer, i, j);
-        destination.addWeightedValue(origin.value * synapse.weight);
+        destination.addWeightedValue(
+          TrainingNeuronDescription(neuronValue: origin.value, synapseWeight: synapse.weight, neuronNumber: i)
+        );
       }
     }
     _neurons.where((n) => n.layer == layer + 1).forEach((f) => f.sealValue());
