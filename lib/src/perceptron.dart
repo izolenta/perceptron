@@ -14,7 +14,7 @@ import 'package:perceptron/src/training_data.dart';
 
 class Perceptron {
 
-  static const alpha = 5;
+  static const alpha = 4;
 
   final _neurons = <Neuron>[];
   final _synapses = <Synapse>[];
@@ -52,10 +52,13 @@ class Perceptron {
       for (var j=0; j<layers[i]; j++) {
         _neurons.add(Neuron(layer: i, number: j, activationFunction: function));
       }
+      if (i != layers.length-1) {
+        _neurons.add(Neuron(layer: i, number: layers[i], activationFunction: function, isCorrector: true));
+      }
     }
     if (initialSynapses == null) {
       for (var i = 0; i < layers.length - 1; i++) {
-        for (var j = 0; j < layers[i]; j++) {
+        for (var j = 0; j <= layers[i]; j++) {
           for (var k = 0; k < layers[i + 1]; k++) {
             _synapses.add(Synapse(
                 synapseLayer: i,
@@ -135,7 +138,7 @@ class Perceptron {
   }
 
   void _processSynapseLayer(int layer) {
-    for (var i=0; i<_netConfiguration[layer]; i++) {
+    for (var i=0; i<=_netConfiguration[layer]; i++) {
       final origin = _getNeuron(layer, i);
       for (var j=0; j<_netConfiguration[layer+1]; j++) {
         final destination = _getNeuron(layer+1, j);

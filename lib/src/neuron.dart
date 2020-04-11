@@ -6,6 +6,7 @@ class Neuron {
 
   final int layer;
   final int number;
+  final bool isCorrector;
 
   final prevLayerValues = <TrainingNeuronDescription>[];
 
@@ -20,17 +21,16 @@ class Neuron {
 
   ActivationFunction activationFunction;
 
-  Neuron({@required this.layer, @required this.number, @required this.activationFunction});
+  Neuron({@required this.layer, @required this.number, @required this.activationFunction, this.isCorrector = false});
 
   void initNeuron() {
-    _value = 0;
+    _value = isCorrector? 1 : 0;
     _error = 0;
     _unsealedValue = 0;
     prevLayerValues.clear();
   }
 
   void setExplicitValue(double value) {
-    assert(layer == 0, 'You shouldn\'t set explicit values to neurons in layers different than input!');
     _value = value;
   }
 
