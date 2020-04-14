@@ -12,9 +12,11 @@ import 'package:perceptron/src/neuron.dart';
 import 'package:perceptron/src/synapse.dart';
 import 'package:perceptron/src/training_data.dart';
 
+import 'package:memoize/memoize.dart';
+
 class Perceptron {
 
-  static const alpha = 4;
+  static const alpha = 1;
 
   final _neurons = <Neuron>[];
   final _synapses = <Synapse>[];
@@ -80,21 +82,22 @@ class Perceptron {
     stopwatch.start();
     _neurons.forEach((n) => n.initNeuron());
     for (var i=0; i<_netConfiguration.first; i++) {
-      _getNeuron(0, i).setExplicitValue(input[i].toDouble());
+      _getNeuronCached(0, i).setExplicitValue(input[i]);
     }
     for (var i=0; i<_netConfiguration.length-1; i++) {
       _processSynapseLayer(i);
     }
     final res = <double>[];
     for (var i=0; i<_netConfiguration.last; i++) {
-      res.add(_getNeuron(_netConfiguration.length-1, i).value);
+      res.add(_getNeuronCached(_netConfiguration.length-1, i).value);
     }
     stopwatch.stop();
-//    print('processed in ${stopwatch.elapsedMilliseconds / 1000} sec');
+    //print('processed in ${stopwatch.elapsedMilliseconds / 1000} sec');
     return res;
   }
 
   void train(List<TrainingData> trainData) {
+    var counter = 0;
     for (var next in trainData) {
       if (next.inputData.length != _netConfiguration.first) {
         print('Data for training should have the same number of inputs as the neurons number of entry layer of the network, skipping');
@@ -106,23 +109,27 @@ class Perceptron {
       }
       process(next.inputData);
       for (var i=0; i<_netConfiguration.last; i++) {
-        final neuron = _getNeuron(_netConfiguration.length-1, i);
+        final neuron = _getNeuronCached(_netConfiguration.length-1, i);
         final sigma =
             (next.outputData[i] - neuron.value) * neuron.activationFunction.derivative(neuron.unsealedValue);
         for (var prevNeuron in neuron.prevLayerValues) {
           final deltaWeight = alpha * sigma * prevNeuron.neuronValue;
-          _getSynapse(1, prevNeuron.neuronNumber, i).addWeight(deltaWeight);
-          _getNeuron(1, prevNeuron.neuronNumber).addErrorValue(sigma * prevNeuron.synapseWeight);
+          _getSynapseCached(1, prevNeuron.neuronNumber, i).addWeight(deltaWeight);
+          _getNeuronCached(1, prevNeuron.neuronNumber).addErrorValue(sigma * prevNeuron.synapseWeight);
         }
       }
       for (var i=0; i<_netConfiguration[1]; i++) {
-        final neuron = _getNeuron(_netConfiguration.length-2, i);
+        final neuron = _getNeuronCached(_netConfiguration.length-2, i);
         final sigma =
             neuron.error * neuron.activationFunction.derivative(neuron.unsealedValue);
         for (var prevNeuron in neuron.prevLayerValues) {
           final deltaWeight = alpha * sigma * prevNeuron.neuronValue;
-          _getSynapse(0, prevNeuron.neuronNumber, i).addWeight(deltaWeight);
+          _getSynapseCached(0, prevNeuron.neuronNumber, i).addWeight(deltaWeight);
         }
+      }
+      counter++;
+      if (counter % 100 == 0) {
+        print('Trained cases: $counter');
       }
     }
   }
@@ -139,10 +146,10 @@ class Perceptron {
 
   void _processSynapseLayer(int layer) {
     for (var i=0; i<=_netConfiguration[layer]; i++) {
-      final origin = _getNeuron(layer, i);
+      final origin = _getNeuronCached(layer, i);
       for (var j=0; j<_netConfiguration[layer+1]; j++) {
-        final destination = _getNeuron(layer+1, j);
-        final synapse = _getSynapse(layer, i, j);
+        final destination = _getNeuronCached(layer+1, j);
+        final synapse = _getSynapseCached(layer, i, j);
         destination.addWeightedValue(
           TrainingNeuronDescription(neuronValue: origin.value, synapseWeight: synapse.weight, neuronNumber: i)
         );
@@ -151,10 +158,13 @@ class Perceptron {
     _neurons.where((n) => n.layer == layer + 1).forEach((f) => f.sealValue());
   }
 
-  Neuron _getNeuron(int layer, int number) => _neurons.singleWhere((n) => n.layer == layer && n.number == number);
-  Synapse _getSynapse(int layer, int origin, int destination) =>
-      _synapses.singleWhere((s) => s.synapseLayer == layer && s.originNeuron == origin && s.destinationNeuron == destination);
-  
+  final _getNeuron = memo3((List<Neuron> neurons, int layer, int number) => neurons.singleWhere((n) => n.layer == layer && n.number == number));
+  final _getSynapse = memo4((List<Synapse> synapses, int layer, int origin, int destination) =>
+      synapses.singleWhere((s) => s.synapseLayer == layer && s.originNeuron == origin && s.destinationNeuron == destination));
+
+  Neuron _getNeuronCached(int layer, int number) => _getNeuron(_neurons, layer, number);
+  Synapse _getSynapseCached(int layer, int origin, int destination) => _getSynapse(_synapses, layer, origin, destination);
+
   String toJson() {
     final map = <String, Object>{};
     map['netConfiguration'] = _netConfiguration;
