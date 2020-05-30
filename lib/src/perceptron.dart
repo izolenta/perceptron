@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+//import 'dart:io';
 import 'dart:math';
 
 import 'package:perceptron/src/activation_functions/activation_function.dart';
@@ -16,7 +16,7 @@ import 'package:memoize/memoize.dart';
 
 class Perceptron {
 
-  static const alpha = 1;
+  final alpha;
 
   final _neurons = <Neuron>[];
   final _synapses = <Synapse>[];
@@ -25,12 +25,12 @@ class Perceptron {
   List<int> _netConfiguration;
   ActivationFunctionType _activationFunctionType;
 
-  Perceptron(List<int> layers, [ActivationFunctionType activationFunctionType = ActivationFunctionType.sigmoid]) {
+  Perceptron(List<int> layers, this.alpha, [ActivationFunctionType activationFunctionType = ActivationFunctionType.sigmoid]) {
     _init(layers, activationFunctionType);
   }
 
-  Perceptron.fromFile(String filename) {
-    final Map<String, dynamic> loaded = jsonDecode(File(filename).readAsStringSync());
+  Perceptron.fromJson(String json, this.alpha) {
+    final Map<String, dynamic> loaded = jsonDecode(json);
     final layers = List<int>.from(loaded['netConfiguration']);
     final activationFunctionType = loaded['activationFunction']?? ActivationFunctionType.sigmoid.value;
     final synapses = <Synapse>[];
@@ -43,6 +43,22 @@ class Perceptron {
       )));
     _init(layers, ActivationFunctionType.parse(activationFunctionType), synapses);
   }
+
+
+//  Perceptron.fromFile(String filename) {
+//    final Map<String, dynamic> loaded = jsonDecode(File(filename).readAsStringSync());
+//    final layers = List<int>.from(loaded['netConfiguration']);
+//    final activationFunctionType = loaded['activationFunction']?? ActivationFunctionType.sigmoid.value;
+//    final synapses = <Synapse>[];
+//    (loaded['synapses'] as List).forEach((next) =>
+//      synapses.add(Synapse(
+//        synapseLayer: next['layer'],
+//        originNeuron: next['origin'],
+//        destinationNeuron: next['destination'],
+//        weight: next['weight'],
+//      )));
+//    _init(layers, ActivationFunctionType.parse(activationFunctionType), synapses);
+//  }
 
   void _init(List<int> layers, ActivationFunctionType activationFunctionType, [List<Synapse> initialSynapses]) {
     assert(layers.length == 3, 'This library supports neural networks with one input, one hidden and one output layers');
@@ -107,7 +123,14 @@ class Perceptron {
         print('Data for training should have the same number of outputs as the neurons number of exit layer of the network, skipping');
         continue;
       }
-      process(next.inputData);
+      final res = process(next.inputData);
+      var errorValue = 0.0;
+      for (var i=0; i<_netConfiguration.last; i++) {
+        errorValue += (next.outputData[i] - res[i]) * (next.outputData[i] - res[i]);
+      }
+      if (counter % 10 == 0) {
+        print('err function: $errorValue');
+      }
       for (var i=0; i<_netConfiguration.last; i++) {
         final neuron = _getNeuronCached(_netConfiguration.length-1, i);
         final sigma =
@@ -173,8 +196,8 @@ class Perceptron {
     return jsonEncode(map);
   }
 
-  void saveToFile(String fileName) {
-    var file = File(fileName);
-    file.writeAsStringSync(toJson());
-  }
+//  void saveToFile(String fileName) {
+//    var file = File(fileName);
+//    file.writeAsStringSync(toJson());
+//  }
 }
