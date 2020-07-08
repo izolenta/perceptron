@@ -1,5 +1,4 @@
 import 'dart:convert';
-//import 'dart:io';
 import 'dart:math';
 
 import 'package:perceptron/src/activation_functions/activation_function.dart';
@@ -45,22 +44,6 @@ class Perceptron {
       )));
     _init(layers, ActivationFunctionType.parse(activationFunctionType), synapses);
   }
-
-
-//  Perceptron.fromFile(String filename) {
-//    final Map<String, dynamic> loaded = jsonDecode(File(filename).readAsStringSync());
-//    final layers = List<int>.from(loaded['netConfiguration']);
-//    final activationFunctionType = loaded['activationFunction']?? ActivationFunctionType.sigmoid.value;
-//    final synapses = <Synapse>[];
-//    (loaded['synapses'] as List).forEach((next) =>
-//      synapses.add(Synapse(
-//        synapseLayer: next['layer'],
-//        originNeuron: next['origin'],
-//        destinationNeuron: next['destination'],
-//        weight: next['weight'],
-//      )));
-//    _init(layers, ActivationFunctionType.parse(activationFunctionType), synapses);
-//  }
 
   void _init(List<int> layers, ActivationFunctionType activationFunctionType, [List<Synapse> initialSynapses]) {
     assert(layers.length == 3, 'This library supports neural networks with one input, one hidden and one output layers');
@@ -159,6 +142,7 @@ class Perceptron {
     }
   }
 
+  //do not use this method - very special case is handled here
   void trainForPic(List<TrainingData> trainData) {
     var counter = 0;
     for (var data in trainData) {
@@ -272,9 +256,4 @@ class Perceptron {
     map['synapses'] = _synapses.map((s) => s.toJson()).toList();
     return jsonEncode(map);
   }
-
-//  void saveToFile(String fileName) {
-//    var file = File(fileName);
-//    file.writeAsStringSync(toJson());
-//  }
 }
